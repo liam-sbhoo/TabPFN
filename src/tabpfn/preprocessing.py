@@ -74,7 +74,7 @@ class RegressorDatasetConfig(BaseDatasetConfig):
     bardist_: FullSupportBarDistribution
 
 
-@dataclass(frozen=True, eq=True)
+@dataclass(eq=True)
 class PreprocessorConfig:
     """Configuration for data preprocessors.
 
@@ -843,6 +843,10 @@ class DatasetCollectionWithPreprocessing(Dataset):
                   for target variable (specific to the regression config).
                 * `bardist_` (FullSupportBarDistribution): Binning class for
                   target variable (specific to the regression config).
+                * `X_train_raw` (torch.Tensor): Original, unprocessed training feature
+                  tensor.
+                * `y_train_raw` (torch.Tensor): Original, unprocessed training target
+                  tensor.
                 * `x_test_raw` (torch.Tensor): Original, unprocessed test feature
                   tensor.
                 * `y_test_raw` (torch.Tensor): Original, unprocessed test target
@@ -964,6 +968,8 @@ class DatasetCollectionWithPreprocessing(Dataset):
                 conf,
                 normalized_bardist_,
                 bardist_,
+                x_train_raw,
+                y_train_raw,
                 x_test_raw,
                 y_test_raw,
             )

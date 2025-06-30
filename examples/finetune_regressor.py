@@ -120,6 +120,8 @@ if __name__ == "__main__":
                 confs,
                 normalized_bardist_,
                 bardist_,
+                batch_x_train_raw,
+                batch_y_train_raw,
                 batch_x_test_raw,
                 batch_y_test_raw,
             ) = data_batch

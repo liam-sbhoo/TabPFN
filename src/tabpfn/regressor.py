@@ -411,6 +411,14 @@ class TabPFNRegressor(RegressorMixin, BaseEstimator):
         self.inference_config = inference_config
         self.differentiable_input = differentiable_input
 
+    def initialize_model(self) -> None:
+        """Initializes the model variables without fitting.
+
+        This is useful for accessing the model before fitting, e.g. for optimizers.
+        """
+        if not hasattr(self, "model_"):
+            self._initialize_model_variables()
+
     # TODO: We can remove this from scikit-learn lower bound of 1.6
     def _more_tags(self) -> dict[str, Any]:
         return {

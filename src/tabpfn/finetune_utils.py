@@ -61,6 +61,11 @@ def clone_model_for_evaluation(
         else:
             raise TypeError("Unsupported model type for evaluation preparation.")
 
+        eval_init_args = eval_init_args.copy()
+        if "model_path" in eval_init_args:
+            # We are creating new model spec, so we don't want to pass model_path
+            del eval_init_args["model_path"]
+
         eval_model = model_class(model_path=model_spec_obj, **eval_init_args)
 
     else:
