@@ -52,6 +52,12 @@ def balance(x: Iterable[T], n: int) -> list[T]:
     return list(chain.from_iterable(repeat(elem, n) for elem in x))
 
 
+def to_float_or_long(tensor: torch.Tensor) -> torch.Tensor:
+    """Converts a tensor to float if it's a floating point type, else to long."""
+    if torch.is_floating_point(tensor):
+        return tensor.float()
+    return tensor.long()
+
 @dataclass
 class BaseDatasetConfig:
     """Base configuration class for holding dataset specifics."""
@@ -943,16 +949,12 @@ class DatasetCollectionWithPreprocessing(Dataset):
                 )
 
         if regression_task and not isinstance(y_test_standardized, torch.Tensor):
-            y_test_standardized = torch.from_numpy(y_test_standardized)
-            if torch.is_floating_point(y_test_standardized):
-                y_test_standardized = y_test_standardized.float()
-            else:
-                y_test_standardized = y_test_standardized.long()
+            y_test_standardized = to_float_or_long(torch.from_numpy(y_test_standardized))
 
         x_train_raw = torch.from_numpy(x_train_raw)
         x_test_raw = torch.from_numpy(x_test_raw)
-        y_train_raw = torch.from_numpy(y_train_raw)
-        y_test_raw = torch.from_numpy(y_test_raw)
+        y_train_raw = to_float_or_long(torch.from_numpy(y_train_raw))
+        y_test_raw = to_float_or_long(torch.from_numpy(y_test_raw))
 
         # Also return raw_target variable because of flexiblity
         # in optimisation space -> see examples/
