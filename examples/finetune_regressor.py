@@ -205,8 +205,8 @@ def main():
                     logits, _, _ = regressor.forward(X_tests_p)
 
                 # For regression, the loss function is part of the preprocessed data
-                loss_fn = norm_bardist[0]
-                # loss_fn = bardist[0]
+                # loss_fn = norm_bardist[0]
+                loss_fn = bardist[0]
                 y_target = y_test_std
 
                 loss = loss_fn(logits, y_target.to(config["device"])).mean()
