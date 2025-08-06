@@ -788,30 +788,38 @@ class TabPFNRegressor(RegressorMixin, BaseEstimator):
         X = _fix_dtypes(X, cat_indices=self.inferred_categorical_indices_)
         X = _process_text_na_dataframe(X, ord_encoder=self.preprocessor_)  # type: ignore
 
-        # Runs over iteration engine
-        (
-            _,
-            outputs,  # list of tensors [N_est, N_samples, N_borders] (after forward)
-            borders,  # list of numpy arrays containing borders for each estimator
-        ) = self.forward(X, use_inference_mode=True)
+        import os
+        USE_SHORTCUT = os.environ.get("USE_SHORTCUT", "0") == "1"
 
-        # --- Translate probs, average, get final logits ---
-        transformed_logits = [
-            translate_probs_across_borders(
-                logits,
-                frm=torch.as_tensor(borders_t, device=self.device_),
-                to=self.bardist_.borders.to(self.device_),
-            )
-            for logits, borders_t in zip(outputs, borders)
-        ]
-        stacked_logits = torch.stack(transformed_logits, dim=0)
-        if self.average_before_softmax:
-            logits = stacked_logits.log().mean(dim=0).softmax(dim=-1)
+        if USE_SHORTCUT:
+            print("DEBUG: using shortcut")
+            logits = self.forward(X, use_inference_mode=True)
         else:
-            logits = stacked_logits.mean(dim=0)
+            # Runs over iteration engine
+            (
+                _,
+                outputs,  # list of tensors [N_est, N_samples, N_borders] (after forward)
+                borders,  # list of numpy arrays containing borders for each estimator
+            ) = self.forward(X, use_inference_mode=True)
 
-        # Post-process the logits
-        logits = logits.log()
+            # --- Translate probs, average, get final logits ---
+            transformed_logits = [
+                translate_probs_across_borders(
+                    logits,
+                    frm=torch.as_tensor(borders_t, device=self.device_),
+                    to=self.bardist_.borders.to(self.device_),
+                )
+                for logits, borders_t in zip(outputs, borders)
+            ]
+            stacked_logits = torch.stack(transformed_logits, dim=0)
+            if self.average_before_softmax:
+                logits = stacked_logits.log().mean(dim=0).softmax(dim=-1)
+            else:
+                logits = stacked_logits.mean(dim=0)
+
+            # Post-process the logits
+            logits = logits.log()
+
         if logits.dtype == torch.float16:
             logits = logits.float()
 
@@ -919,6 +927,22 @@ class TabPFNRegressor(RegressorMixin, BaseEstimator):
         std_borders = self.bardist_.borders.cpu().numpy()
         outputs: list[torch.Tensor] = []
         borders: list[np.ndarray] = []
+
+        import os
+        USE_SHORTCUT = os.environ.get("USE_SHORTCUT", "0") == "1"
+
+        if USE_SHORTCUT:
+            assert self.n_estimators == 1, "n_estimators == 1 should have exactly 1 output"
+            logits, config = next(
+                self.executor_.iter_outputs(
+                    X, device=self.device_, autocast=self.use_autocast_
+                )
+            )
+
+            if self.softmax_temperature != 1:
+                logits = logits.float() / self.softmax_temperature
+
+            return logits
 
         # Iterate over estimators
         for output, config in self.executor_.iter_outputs(

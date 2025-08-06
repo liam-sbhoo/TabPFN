@@ -63,7 +63,8 @@ def setup_regressor(config: dict) -> tuple[TabPFNRegressor, dict]:
     regressor_config = {
         "ignore_pretraining_limits": True,
         "device": config["device"],
-        "n_estimators": 2,
+        # "n_estimators": 2,
+        "n_estimators": 1,
         "random_state": config["random_seed"],
         "inference_precision": torch.float32,
     }
@@ -169,6 +170,9 @@ def main():
         },
     }
 
+    initial_result = None
+    best_result_by_mse = None
+
     # --- Finetuning and Evaluation Loop ---
     print("--- 3. Starting Finetuning & Evaluation ---")
     for epoch in range(config["finetuning"]["epochs"] + 1):
@@ -184,18 +188,25 @@ def main():
                     y_test_std,
                     cat_ixs,
                     confs,
-                    norm_bardist,
-                    bardist,
+                    norm_bardist,   # bardist in raw space
+                    bardist,        # bardist in std space
                     _,
                     batch_y_test_raw,
                 ) = data_batch
 
                 regressor.normalized_bardist_ = norm_bardist[0]
                 regressor.fit_from_preprocessed(X_trains_p, y_trains_p, cat_ixs, confs)
-                logits, _, _ = regressor.forward(X_tests_p)
+
+                import os
+                USE_SHORTCUT = os.environ.get("USE_SHORTCUT", "0") == "1"
+                if USE_SHORTCUT:
+                    logits = regressor.forward(X_tests_p)
+                else:
+                    logits, _, _ = regressor.forward(X_tests_p)
 
                 # For regression, the loss function is part of the preprocessed data
                 loss_fn = norm_bardist[0]
+                # loss_fn = bardist[0]
                 y_target = y_test_std
 
                 loss = loss_fn(logits, y_target.to(config["device"])).mean()
@@ -210,12 +221,30 @@ def main():
             regressor, eval_config, X_train, y_train, X_test, y_test
         )
 
+        if best_result_by_mse is None or mse < best_result_by_mse["mse"]:
+            best_result_by_mse = {
+                "mse": mse,
+                "mae": mae,
+                "r2": r2,
+            }
+            print(f"🏆 New Best Result: {best_result_by_mse}")
+
         status = "Initial" if epoch == 0 else f"Epoch {epoch}"
         print(
             f"📊 {status} Evaluation | Test MSE: {mse:.4f}, Test MAE: {mae:.4f}, Test R2: {r2:.4f}\n"
         )
 
+        if status == "Initial":
+            initial_result = {
+                "mse": mse,
+                "mae": mae,
+                "r2": r2,
+            }
+
     print("--- ✅ Finetuning Finished ---")
+
+    print(f"Initial Result: {initial_result}")
+    print(f"Best Result by MSE: {best_result_by_mse}")
 
 
 if __name__ == "__main__":
