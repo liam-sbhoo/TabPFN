@@ -174,6 +174,9 @@ class InferenceConfig:
     _REGRESSION_DEFAULT_OUTLIER_REMOVAL_STD: None = None
     _CLASSIFICATION_DEFAULT_OUTLIER_REMOVAL_STD: float = 12.0
 
+    # Deprecated field kept for backwards compatibility with old checkpoints
+    FIXED_PREPROCESSING_SEED_PER_ESTIMATOR: bool | None = None
+
     def override_with_user_input(
         self, user_config: dict | InferenceConfig | None
     ) -> InferenceConfig:
